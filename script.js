@@ -1,6 +1,5 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const scoreDisplay = document.getElementById('scoreDisplay');
 
 // Game settings
 const gravity = 0.5;
@@ -27,7 +26,7 @@ const bird = {
 // Pipes
 const pipes = [];
 const pipeWidth = 80;
-const pipeGap = 200;
+let currentGap = 250; // Initial gap increased by 25% (from 200)
 let frameCount = 0;
 
 // Background Elements (Clouds)
@@ -47,11 +46,11 @@ function drawBird() {
 
 function drawPipes() {
     pipes.forEach(pipe => {
-        ctx.fillStyle = '#2ecc71'; // Green pipes
+        ctx.fillStyle = pipe.color;
         // Top pipe
         ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
         // Bottom pipe
-        ctx.fillRect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, canvas.height - (pipe.topHeight + pipeGap));
+        ctx.fillRect(pipe.x, pipe.topHeight + pipe.gap, pipeWidth, canvas.height - (pipe.topHeight + pipe.gap));
     });
 }
 
@@ -91,11 +90,56 @@ function resetGame() {
     requestAnimationFrame(update);
 }
 
+// Helper for color interpolation
+function lerpColor(color1, color2, factor) {
+    const hexToRgb = (hex) => {
+        const result = /^#([0-9a-f]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1].substring(0, 2), 16),
+            g: parseInt(result[1].substring(2, 4), 16),
+            b: parseInt(result[1].substring(4, 6), 16)
+        } : null;
+    };
+
+    const c1 = hexToRgb(color1);
+    const c2 = hexToRgb(color2);
+    if (!c1 || !c2) return color1;
+
+    const r = Math.round(c1.r + (c2.r - c1.r) * factor);
+    const g = Math.round(c1.g + (c2.g - c1.g) * factor);
+    const b = Math.round(c1.b + (c2.b - c1.b) * factor);
+
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
 function update() {
     if (!gameRunning) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
+
+    // Difficulty/Color progression every 20 seconds
+    const seconds = Math.floor((Date.now() - startTime) / 1000);
+    const currentLevel = Math.floor(seconds / 20);
+    
+    let targetGap = 250;
+    let targetColor = '#2ecc71';
+
+    if (currentLevel < 3) { // First 60 seconds (3 * 20s)
+        const progress = Math.min(currentLevel / 3, 1);
+        targetGap = 250 - (progress * 35); 
+        targetColor = lerpColor('#2ecc71', '#f1c40f', progress);
+    } else if (currentLevel < 6) { // Next 60 seconds
+        const progress = Math.min((currentLevel - 3) / 3, 1);
+        targetGap = 215 - (progress * 35);
+        targetColor = lerpColor('#f1c40f', '#e74c3c', progress);
+    } else {
+        const progress = Math.min((currentLevel - 6) / 3, 1);
+        targetGap = 180 - (progress * 40);
+        targetColor = lerpColor('#e74c3c', '#9b59b6', progress);
+    }
+
+    currentGap = targetGap;
 
     // Physics
     bird.velocity += gravity;
@@ -109,9 +153,9 @@ function update() {
     // Pipe generation & movement
     if (frameCount % 120 === 0) {
         const minPipeHeight = 150;
-        const maxPipeHeight = canvas.height - pipeGap - minPipeHeight - 100;
+        const maxPipeHeight = canvas.height - currentGap - minPipeHeight - 100;
         const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight)) + minPipeHeight;
-        pipes.push({ x: canvas.width, topHeight: topHeight });
+        pipes.push({ x: canvas.width, topHeight: topHeight, gap: currentGap, color: targetColor });
     }
 
     for (let i = pipes.length - 1; i >= 0; i--) {
@@ -122,14 +166,9 @@ function update() {
         if (
             bird.x + bird.radius > p.x &&
             bird.x - bird.radius < p.x + pipeWidth &&
-            (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.topHeight + pipeGap)
+            (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.topHeight + p.gap)
         ) {
             gameOver();
-        }
-
-        // Score counting (removed, handled by timer in drawBackground)
-        if (p.x + pipeWidth < bird.x && !p.passed) {
-            p.passed = true;
         }
 
         // Remove off-screen pipes
@@ -153,20 +192,26 @@ function gameOver() {
     ctx.font = 'bold 48px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
-    setTimeout(resetGame, 2000);
 }
 
 // Controls
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
-        bird.velocity = jumpHeight;
+        if (!gameRunning) {
+            resetGame();
+        } else {
+            bird.velocity = jumpHeight;
+        }
     }
 });
 
 window.addEventListener('touchstart', (e) => {
-    if (e.cancelable) e.preventDefault();
-    bird.velocity = jumpHeight;
+    if (!gameRunning) {
+        resetGame();
+    } else {
+        bird.velocity = jumpHeight;
+    }
+    if(e.cancelable) e.preventDefault();
 }, { passive: false });
 
-update();
 update();
