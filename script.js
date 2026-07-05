@@ -179,7 +179,7 @@ function update() {
 
     // Collision detection with ceiling and floor (including ground height)
     if (bird.y + bird.radius > canvas.height - 100 || bird.y - bird.radius < 0) {
-        gameOver();
+             gameOver(Math.floor((Date.now() - startTime) / 1000));
     }
 
     // Pipe generation & movement
@@ -203,7 +203,7 @@ function update() {
             bird.x - bird.radius < p.x + pipeWidth &&
             (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.topHeight + p.gap)
         ) {
-            gameOver();
+        gameOver(Math.floor((Date.now() - startTime) / 1000));
         }
 
         // Remove off-screen pipes
@@ -219,14 +219,14 @@ function update() {
     requestAnimationFrame(update);
 }
 
-function gameOver() {
+function gameOver(seconds) {
     gameRunning = false;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'white';
     ctx.font = 'bold 48px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+    ctx.fillText(`Game Over ${seconds}s`, canvas.width / 2, canvas.height / 2);
 }
 
 // Controls
