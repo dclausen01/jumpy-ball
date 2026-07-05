@@ -21,6 +21,7 @@ const bird = {
     y: canvas.height / 2,
     radius: 20,
     velocity: 0,
+    speed: 5,
 };
 
 // Pipes
@@ -176,6 +177,13 @@ function update() {
     // Physics
     bird.velocity += gravity;
     bird.y += bird.velocity;
+    
+    if (keys['ArrowLeft'] && bird.x > bird.radius) {
+        bird.x -= bird.speed;
+    }
+    if (keys['ArrowRight'] && bird.x < canvas.width - bird.radius) {
+        bird.x += bird.speed;
+    }
 
     // Collision detection with ceiling and floor (including ground height)
     if (bird.y + bird.radius > canvas.height - 100 || bird.y - bird.radius < 0) {
@@ -226,11 +234,13 @@ function gameOver(seconds) {
     ctx.fillStyle = 'white';
     ctx.font = 'bold 48px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`Game Over ${seconds}s`, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(`Game Over nach ${seconds} s`, canvas.width / 2, canvas.height / 2);
 }
 
-// Controls
+const keys = {};
+
 window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
     if (e.code === 'Space' || e.code === 'ArrowUp') {
         if (!gameRunning) {
             resetGame();
@@ -238,6 +248,10 @@ window.addEventListener('keydown', (e) => {
             bird.velocity = jumpHeight;
         }
     }
+});
+
+window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
 });
 
 window.addEventListener('touchstart', (e) => {
