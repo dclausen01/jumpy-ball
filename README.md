@@ -1,4 +1,4 @@
-# Flappy Ball
+# Jumpy Ball
 
 A simple, interactive "Flappy Bird" style game built using HTML5 Canvas and JavaScript.
 
