@@ -121,22 +121,54 @@ function update() {
     // Difficulty/Color progression every 20 seconds
     const seconds = Math.floor((Date.now() - startTime) / 1000);
     const currentLevel = Math.floor(seconds / 20);
-    
+    const totalStages = 9;
+
     let targetGap = 250;
     let targetColor = '#2ecc71';
 
-    if (currentLevel < 3) { // First 60 seconds (3 * 20s)
+    // Defined color stages: [dark green, light green, green-yellow, light yellow, middle yellow, dark yellow, orange, light red, middle red, dark red]
+    const colors = [
+        '#046307', // dark green (already intended to be close)
+        '#2ecc71', // light green
+        '#a2cf6e', // green-yellow
+        '#f9f58c', // light yellow
+        '#f1c40f', // middle yellow
+        '#d35400', // dark yellow / orangeish
+        '#e67e22', // orange
+        '#ff5252', // light red
+        '#e74c3c', // middle red
+        '#9b59b6'  // wait, let's use actual dark red: #800000
+    ];
+    // Actually, I will just define the colors clearly based on the request.
+    const colorSteps = [
+        '#1a4d2e', // dark green
+        '#2ecc71', // light green
+        '#96ce3e', // green-yellow
+        '#fdfb8c', // light yellow
+        '#f1c40f', // middle yellow
+        '#ffcc00', // dark yellow
+        '#ff8c00', // orange
+        '#ff5252', // light red
+        '#e74c3c', // middle red
+        '#8b0000'  // dark red/blood
+    ];
+
+    let stageIndex = Math.min(Math.floor(currentLevel / 1), colorSteps.length - 1);
+    // Each 2nd level (40 seconds) changes the color step? Or every level? Let's do every 2 levels to make it slower.
+    // Actually, the prompt implies a progression. Let's use currentLevel directly but cap it.
+    stageIndex = Math.min(Math.floor(currentLevel / 2), colorSteps.length - 1);
+
+    targetColor = colorSteps[stageIndex];
+    
+    if (currentLevel < 3) { // First 60 seconds
         const progress = Math.min(currentLevel / 3, 1);
-        targetGap = 250 - (progress * 35); 
-        targetColor = lerpColor('#2ecc71', '#f1c40f', progress);
-    } else if (currentLevel < 6) { // Next 60 seconds
+        targetGap = 250 - (progress * 40); 
+    } else if (currentLevel < 6) {
         const progress = Math.min((currentLevel - 3) / 3, 1);
-        targetGap = 215 - (progress * 35);
-        targetColor = lerpColor('#f1c40f', '#e74c3c', progress);
+        targetGap = 210 - (progress * 40);
     } else {
         const progress = Math.min((currentLevel - 6) / 3, 1);
-        targetGap = 180 - (progress * 40);
-        targetColor = lerpColor('#e74c3c', '#9b59b6', progress);
+        targetGap = 170 - (progress * 45);
     }
 
     currentGap = targetGap;
@@ -152,10 +184,13 @@ function update() {
 
     // Pipe generation & movement
     if (frameCount % 120 === 0) {
-        const minPipeHeight = 150;
+        const minPipeHeight = 50;
         const maxPipeHeight = canvas.height - currentGap - minPipeHeight - 100;
-        const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight)) + minPipeHeight;
+        // Increase variance with level: more possible positions as it gets harder
+        const range = Math.min(maxPipeHeight - minPipeHeight, 200 + (currentLevel * 50));
+        const topHeight = Math.floor(Math.random() * range) + minPipeHeight;
         pipes.push({ x: canvas.width, topHeight: topHeight, gap: currentGap, color: targetColor });
+
     }
 
     for (let i = pipes.length - 1; i >= 0; i--) {
