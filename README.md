@@ -21,3 +21,4 @@ A simple, interactive "Flappy Bird" style game built using HTML5 Canvas and Java
 
 ## Development Info
 This project was completely engineered using the **gemma4:12b** model and the **opencode** CLI tool. 🚀
+
