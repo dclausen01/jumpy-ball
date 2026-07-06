@@ -1,4 +1,4 @@
-# Jumpy Ball
+# Jumpy Ball - Single- and Multiplayer
 
 A simple, interactive "Flappy Bird" style game built using HTML5 Canvas and JavaScript.
 
