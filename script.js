@@ -491,23 +491,22 @@ function checkCollision(player) {
 }
 
 function updateDifficulty() {
-    const seconds = Math.floor((Date.now() - state.startTime) / 1000);
+    const elapsed = (Date.now() - state.startTime) / 1000;
+    const seconds = Math.floor(elapsed);
     const currentLevel = Math.floor(seconds / 20);
 
-    let targetGap = INITIAL_GAP;
+    const progress = elapsed / 20 - currentLevel;
+    const maxLevel = 9;
 
-    if (currentLevel < 3) {
-        const progress = Math.min(currentLevel / 3, 1);
-        targetGap = 250 - (progress * 40);
-    } else if (currentLevel < 6) {
-        const progress = Math.min((currentLevel - 3) / 3, 1);
-        targetGap = 210 - (progress * 40);
+    if (currentLevel <= maxLevel) {
+        const gapStart = 280 - currentLevel * 15;
+        const gapEnd = 280 - (currentLevel + 1) * 15;
+        state.currentGap = gapStart - progress * (gapStart - gapEnd);
     } else {
-        const progress = Math.min((currentLevel - 6) / 3, 1);
-        targetGap = 170 - (progress * 45);
+        state.currentGap = 280 - maxLevel * 15 - (elapsed - maxLevel * 20) * 0.5;
+        state.currentGap = Math.max(state.currentGap, 100);
     }
 
-    state.currentGap = targetGap;
     state.currentLevel = currentLevel;
     state.level = currentLevel + 1;
 
@@ -594,13 +593,27 @@ function updatePipes() {
     }
 
     if (!powerUpItem && state.frameCount > 300 && Math.random() < 0.002) {
-        const minPipeH = 80;
-        const maxPipeH = canvas.height - state.currentGap - minPipeH - GROUND_HEIGHT;
-        if (maxPipeH > minPipeH) {
-            const py = Math.floor(Math.random() * (maxPipeH - minPipeH)) + minPipeH + (state.currentGap / 2);
+        const nearestPipe = pipes.find(p => p.x > canvas.width - PIPE_WIDTH * 2 && p.x < canvas.width + PIPE_WIDTH);
+        if (nearestPipe) {
+            const gapTop = nearestPipe.topHeight;
+            const gapBottom = nearestPipe.topHeight + nearestPipe.gap;
+            const padding = 20;
+            const minY = gapTop + padding;
+            const maxY = gapBottom - padding;
+            if (maxY > minY) {
+                const py = Math.floor(Math.random() * (maxY - minY)) + minY;
+                powerUpItem = {
+                    x: nearestPipe.x + PIPE_WIDTH / 2,
+                    y: py,
+                    type: POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)],
+                };
+            }
+        } else {
+            const safeY = canvas.height / 2 + (Math.random() - 0.5) * 100;
+            const safeYClamped = Math.max(80, Math.min(canvas.height - GROUND_HEIGHT - 80, safeY));
             powerUpItem = {
-                x: canvas.width + 100,
-                y: py,
+                x: canvas.width + 200,
+                y: safeYClamped,
                 type: POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)],
             };
         }
