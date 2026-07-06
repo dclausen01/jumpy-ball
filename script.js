@@ -475,6 +475,19 @@ function checkCollision(player) {
     return false;
 }
 
+function interpolateColor(hex1, hex2, t) {
+    const r1 = parseInt(hex1.slice(1, 3), 16);
+    const g1 = parseInt(hex1.slice(3, 5), 16);
+    const b1 = parseInt(hex1.slice(5, 7), 16);
+    const r2 = parseInt(hex2.slice(1, 3), 16);
+    const g2 = parseInt(hex2.slice(3, 5), 16);
+    const b2 = parseInt(hex2.slice(5, 7), 16);
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
 function updateDifficulty() {
     const elapsed = (Date.now() - state.startTime) / 1000;
     const seconds = Math.floor(elapsed);
@@ -495,8 +508,10 @@ function updateDifficulty() {
     state.currentLevel = currentLevel;
     state.level = currentLevel + 1;
 
-    const stageIndex = Math.min(Math.floor(currentLevel / 2), COLOR_STEPS.length - 1);
-    state.targetColor = COLOR_STEPS[stageIndex];
+    const colorProgress = elapsed / 20;
+    const colorIdx = Math.min(Math.floor(colorProgress / 2), COLOR_STEPS.length - 2);
+    const colorT = Math.min((colorProgress - colorIdx * 2) / 2, 1);
+    state.targetColor = interpolateColor(COLOR_STEPS[colorIdx], COLOR_STEPS[colorIdx + 1], colorT);
 }
 
 function getCurrentPipeSpeed() {
@@ -570,8 +585,11 @@ function updatePowerUp() {
 }
 
 function updatePipes() {
-    const currentSpawnRate = Math.max(100, PIPE_INTERVAL - state.currentLevel * 8);
-    if (state.frameCount % currentSpawnRate === 0) {
+    const speed = getCurrentPipeSpeed();
+    const minSpacing = Math.max(PIPE_WIDTH + 120, 480 - state.currentLevel * 20);
+
+    const lastPipe = pipes[pipes.length - 1];
+    if (!lastPipe || lastPipe.x < canvas.width - minSpacing) {
         const minPipeHeight = 50;
         const maxPipeHeight = canvas.height - state.currentGap - minPipeHeight - GROUND_HEIGHT;
         const range = Math.min(maxPipeHeight - minPipeHeight, 200 + (state.currentLevel * 50));
@@ -588,7 +606,6 @@ function updatePipes() {
         }
     }
 
-    const speed = getCurrentPipeSpeed();
     for (let i = pipes.length - 1; i >= 0; i--) {
         pipes[i].x -= speed;
         if (pipes[i].x + PIPE_WIDTH < 0) {
