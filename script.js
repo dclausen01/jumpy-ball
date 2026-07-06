@@ -126,6 +126,7 @@ function createPlayers() {
         speed: BIRD_SPEED,
         alive: state.mode !== 'single' || index === 0,
         deathTime: null,
+        score: 0,
         color: config.color,
         outlineColor: config.outlineColor,
         name: config.name,
@@ -282,11 +283,8 @@ function drawParticles() {
             continue;
         }
 
-        ctx.fillStyle = p.color.replace('1)', `${p.alpha})`);
-        if (p.color.startsWith('#')) {
-            ctx.globalAlpha = p.alpha;
-            ctx.fillStyle = p.color;
-        }
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * p.alpha, 0, Math.PI * 2);
         ctx.fill();
@@ -349,7 +347,7 @@ function drawUI() {
         players.forEach((player, i) => {
             ctx.fillStyle = player.color;
             ctx.font = 'bold 22px Arial';
-            ctx.fillText(`${player.name}: ${player.alive ? 'Lebt' : 'Tot'}`, 20, 170 + i * 30);
+            ctx.fillText(`${player.name}: ${player.alive ? 'Lebt' : 'Tot'} | ${player.score}pts`, 20, 170 + i * 30);
         });
     }
 
@@ -453,7 +451,7 @@ function drawGameOver() {
         ctx.font = '24px Arial';
         ctx.fillStyle = 'white';
         players.forEach((p, i) => {
-            ctx.fillText(`${p.name}: ${p.deathTime || totalSeconds}s | ${p.score || state.score}pts`, canvas.width / 2, canvas.height / 2 + 10 + i * 30);
+            ctx.fillText(`${p.name}: ${p.deathTime || totalSeconds}s | ${p.score}pts`, canvas.width / 2, canvas.height / 2 + 10 + i * 30);
         });
     }
 
@@ -474,19 +472,6 @@ function checkCollision(player) {
             return true;
         }
     }
-
-    if (powerUpItem && player.alive) {
-        const pu = powerUpItem;
-        const dx = player.x - pu.x;
-        const dy = player.y - (pu.y + Math.sin(state.frameCount * 0.05) * 5);
-        if (Math.sqrt(dx * dx + dy * dy) < player.radius + 12) {
-            state.powerUp = pu.type;
-            state.powerUpEndTime = Date.now() + POWERUP_DURATION;
-            powerUpItem = null;
-            playSound('powerup');
-        }
-    }
-
     return false;
 }
 
@@ -538,6 +523,19 @@ function updatePlayer(player) {
         player.x += player.speed * speedMod;
     }
 
+    if (powerUpItem) {
+        const pu = powerUpItem;
+        const bobY = pu.y + Math.sin(state.frameCount * 0.05) * 5;
+        const dx = player.x - pu.x;
+        const dy = player.y - bobY;
+        if (Math.sqrt(dx * dx + dy * dy) < player.radius + 12) {
+            state.powerUp = pu.type;
+            state.powerUpEndTime = Date.now() + POWERUP_DURATION;
+            powerUpItem = null;
+            playSound('powerup');
+        }
+    }
+
     if (checkCollision(player)) {
         player.alive = false;
         player.deathTime = Math.floor((Date.now() - state.startTime) / 1000);
@@ -547,16 +545,22 @@ function updatePlayer(player) {
 }
 
 function updateScore() {
-    players.forEach(player => {
+    players.forEach((player, idx) => {
         if (!player.alive) return;
         for (const pipe of pipes) {
-            if (!pipe.passedBy && pipe.x + PIPE_WIDTH < player.x - player.radius) {
-                pipe.passedBy = true;
-                state.score += POINTS_PER_PIPE;
+            if (!pipe.passedBy.has(idx) && pipe.x + PIPE_WIDTH < player.x - player.radius) {
+                pipe.passedBy.add(idx);
+                player.score += POINTS_PER_PIPE;
                 playSound('pass');
             }
         }
     });
+
+    if (state.mode === 'single' && players[0]) {
+        state.score = players[0].score;
+    } else if (state.mode === 'multi') {
+        state.score = Math.max(...players.map(p => p.score), 0);
+    }
 }
 
 function updatePowerUp() {
@@ -579,7 +583,7 @@ function updatePipes() {
                 topHeight,
                 gap: effectiveGap,
                 color: state.targetColor,
-                passedBy: false,
+                passedBy: new Set(),
             });
         }
     }
@@ -727,13 +731,6 @@ window.addEventListener('keydown', (e) => {
         pipes.length = 0;
         powerUpItem = null;
         keys[e.code] = false;
-        return;
-    }
-
-    if (e.phase === 'gameover') {
-        if (e.code === 'Space') {
-            resetGame();
-        }
         return;
     }
 
