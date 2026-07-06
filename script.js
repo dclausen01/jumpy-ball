@@ -44,6 +44,7 @@ const state = {
     phase: 'menu',
     mode: 'single',
     startTime: Date.now(),
+    endTime: null,
     frameCount: 0,
     currentGap: INITIAL_GAP,
 };
@@ -127,7 +128,8 @@ function drawUI() {
     ctx.fillStyle = 'white';
     ctx.font = 'bold 30px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(`Zeit: ${Math.floor((Date.now() - state.startTime) / 1000)}s`, 20, 40);
+    const elapsed = state.endTime ? Math.floor((state.endTime - state.startTime) / 1000) : Math.floor((Date.now() - state.startTime) / 1000);
+    ctx.fillText(`Zeit: ${elapsed}s`, 20, 40);
 
     if (state.mode === 'multi') {
         players.forEach((player, i) => {
@@ -161,7 +163,7 @@ function drawGameOver() {
     ctx.font = 'bold 48px Arial';
     ctx.textAlign = 'center';
 
-    const seconds = Math.floor((Date.now() - state.startTime) / 1000);
+    const seconds = Math.floor((state.endTime - state.startTime) / 1000);
 
     if (state.mode === 'single') {
         const survivalTime = players[0].deathTime || seconds;
@@ -278,6 +280,7 @@ function resetGame() {
     createPlayers();
     pipes.length = 0;
     state.startTime = Date.now();
+    state.endTime = null;
     state.frameCount = 0;
     state.phase = 'playing';
 }
@@ -311,8 +314,10 @@ function update() {
 
     const aliveCount = players.filter(p => p.alive).length;
     if (state.mode === 'single' && aliveCount === 0) {
+        state.endTime = Date.now();
         state.phase = 'gameover';
     } else if (state.mode === 'multi' && aliveCount === 0) {
+        state.endTime = Date.now();
         state.phase = 'gameover';
     }
 
