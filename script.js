@@ -2,15 +2,15 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Constants
-const GRAVITY = 0.5;
-const JUMP_HEIGHT = -8;
+const GRAVITY = 0.35;
+const JUMP_HEIGHT = -6.5;
 const BIRD_RADIUS = 20;
 const BIRD_SPEED = 5;
 const GROUND_HEIGHT = 100;
 const PIPE_WIDTH = 80;
-const PIPE_SPEED = 4;
-const PIPE_INTERVAL = 120;
-const INITIAL_GAP = 250;
+const PIPE_SPEED = 3;
+const PIPE_INTERVAL = 160;
+const INITIAL_GAP = 280;
 const SKY_COLOR = '#87CEEB';
 const GROUND_COLOR = '#2ecc71';
 
@@ -86,6 +86,7 @@ function createPlayers() {
 
 function drawBirdEntity(player) {
     if (!player.alive) return;
+
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius + 3, 0, Math.PI * 2);
     ctx.fillStyle = player.outlineColor;
@@ -96,6 +97,39 @@ function drawBirdEntity(player) {
     ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
     ctx.fillStyle = player.color;
     ctx.fill();
+    ctx.closePath();
+
+    const eyeOffsetX = 6;
+    const eyeY = player.y - 4;
+    const eyeRadius = 5;
+    const pupilRadius = 2.5;
+
+    const pupilShiftY = Math.max(-2, Math.min(2, player.velocity * 0.3));
+
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(player.x - eyeOffsetX, eyeY, eyeRadius, 0, Math.PI * 2);
+    ctx.arc(player.x + eyeOffsetX, eyeY, eyeRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.closePath();
+
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(player.x - eyeOffsetX, eyeY + pupilShiftY, pupilRadius, 0, Math.PI * 2);
+    ctx.arc(player.x + eyeOffsetX, eyeY + pupilShiftY, pupilRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.closePath();
+
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    const smileRadius = 5;
+    const smileY = player.y + 5;
+    const smileStart = 0.15 * Math.PI;
+    const smileEnd = 0.85 * Math.PI;
+    ctx.arc(player.x, smileY, smileRadius, smileStart, smileEnd);
+    ctx.stroke();
     ctx.closePath();
 }
 
@@ -193,13 +227,13 @@ function drawGameOver() {
         }
 
         ctx.font = '24px Arial';
-        players.forEach(p => {
-            ctx.fillText(`${p.name}: ${p.deathTime || seconds}s`, canvas.width / 2, canvas.height / 2 + 30);
+        players.forEach((p, i) => {
+            ctx.fillText(`${p.name}: ${p.deathTime || seconds}s`, canvas.width / 2, canvas.height / 2 + 40 + i * 35);
         });
     }
 
     ctx.font = '20px Arial';
-    ctx.fillText('Space = Neustart | ESC = Menü', canvas.width / 2, canvas.height / 2 + 80);
+    ctx.fillText('Space = Neustart | ESC = Menü', canvas.width / 2, canvas.height / 2 + 130);
 }
 
 function checkCollision(player) {
