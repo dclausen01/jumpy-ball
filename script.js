@@ -43,6 +43,7 @@ const state = {
     level: 1,
     score: 0,
     highScore: parseInt(localStorage.getItem('jumpy_highscore') || '0'),
+    highScoreMulti: parseInt(localStorage.getItem('jumpy_highscore_multi') || '0'),
     currentGap: INITIAL_GAP,
     targetColor: COLOR_STEPS[0],
     powerUp: null,
@@ -264,13 +265,30 @@ function drawBackground() {
         ctx.arc(cloud.x + cloud.size * 0.5, cloud.y + cloud.size * 0.3, cloud.size * 0.7, 0, Math.PI * 2);
         ctx.fill();
         ctx.closePath();
+    });
+}
 
+function updateClouds() {
+    clouds.forEach(cloud => {
         cloud.x += cloud.speed;
         if (cloud.x > canvas.width + cloud.size) cloud.x = -cloud.size;
     });
 }
 
 function drawParticles() {
+    for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.alpha, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.closePath();
+        ctx.globalAlpha = 1;
+    }
+}
+
+function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -280,16 +298,7 @@ function drawParticles() {
 
         if (p.alpha <= 0) {
             particles.splice(i, 1);
-            continue;
         }
-
-        ctx.globalAlpha = p.alpha;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.alpha, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.closePath();
-        ctx.globalAlpha = 1;
     }
 }
 
@@ -393,10 +402,10 @@ function drawMenu() {
     ctx.fillText('Pfeiltasten / Space = Springen & Bewegen', canvas.width / 2, canvas.height / 2 + 70);
     ctx.fillText('Touch = Springen (Mobile)', canvas.width / 2, canvas.height / 2 + 95);
 
-    if (state.highScore > 0) {
+    if (state.highScore > 0 || state.highScoreMulti > 0) {
         ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText(`Highscore: ${state.highScore}`, canvas.width / 2, canvas.height / 2 + 140);
+        ctx.font = 'bold 22px Arial';
+        ctx.fillText(`Highscore SP: ${state.highScore} | MP: ${state.highScoreMulti}`, canvas.width / 2, canvas.height / 2 + 140);
     }
 
     ctx.fillStyle = '#aaa';
@@ -430,16 +439,10 @@ function drawGameOver() {
     } else {
         ctx.fillText(`Game Over nach ${totalSeconds}s`, canvas.width / 2, canvas.height / 2 - 80);
 
-        const alivePlayer = players.find(p => p.alive);
         let winner = null;
-
-        if (alivePlayer) {
-            winner = alivePlayer.name;
-        } else {
-            const [p1, p2] = players;
-            if (p1.deathTime > p2.deathTime) winner = p1.name;
-            else if (p2.deathTime > p1.deathTime) winner = p2.name;
-        }
+        const [p1, p2] = players;
+        if (p1.deathTime > p2.deathTime) winner = p1.name;
+        else if (p2.deathTime > p1.deathTime) winner = p2.name;
 
         ctx.font = 'bold 36px Arial';
         if (winner) {
@@ -453,6 +456,12 @@ function drawGameOver() {
         players.forEach((p, i) => {
             ctx.fillText(`${p.name}: ${p.deathTime || totalSeconds}s | ${p.score}pts`, canvas.width / 2, canvas.height / 2 + 10 + i * 30);
         });
+
+        if (state.score >= state.highScoreMulti && state.score > 0) {
+            ctx.fillStyle = '#ff0';
+            ctx.font = 'bold 28px Arial';
+            ctx.fillText('NEUER HIGHSCORE!', canvas.width / 2, canvas.height / 2 + 80);
+        }
     }
 
     ctx.font = '20px Arial';
@@ -615,6 +624,7 @@ function updatePipes() {
 
     if (!powerUpItem && state.frameCount > 300 && Math.random() < 0.002) {
         const nearestPipe = pipes.find(p => p.x > canvas.width - PIPE_WIDTH * 2 && p.x < canvas.width + PIPE_WIDTH);
+        let spawned = false;
         if (nearestPipe) {
             const gapTop = nearestPipe.topHeight;
             const gapBottom = nearestPipe.topHeight + nearestPipe.gap;
@@ -628,8 +638,10 @@ function updatePipes() {
                     y: py,
                     type: POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)],
                 };
+                spawned = true;
             }
-        } else {
+        }
+        if (!spawned) {
             const safeY = canvas.height / 2 + (Math.random() - 0.5) * 100;
             const safeYClamped = Math.max(80, Math.min(canvas.height - GROUND_HEIGHT - 80, safeY));
             powerUpItem = {
@@ -649,9 +661,16 @@ function updatePipes() {
 }
 
 function saveHighScore() {
-    if (state.score > state.highScore) {
-        state.highScore = state.score;
-        localStorage.setItem('jumpy_highscore', String(state.highScore));
+    if (state.mode === 'single') {
+        if (state.score > state.highScore) {
+            state.highScore = state.score;
+            localStorage.setItem('jumpy_highscore', String(state.highScore));
+        }
+    } else {
+        if (state.score > state.highScoreMulti) {
+            state.highScoreMulti = state.score;
+            localStorage.setItem('jumpy_highscore_multi', String(state.highScoreMulti));
+        }
     }
 }
 
@@ -675,6 +694,7 @@ function resetGame() {
 
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    updateClouds();
     drawBackground();
 
     if (state.phase === 'menu') {
@@ -684,6 +704,7 @@ function update() {
     }
 
     if (state.phase === 'gameover') {
+        updateParticles();
         drawPipes();
         drawPowerUpItem();
         drawParticles();
@@ -699,6 +720,7 @@ function update() {
     players.forEach(p => updatePlayer(p));
     updatePipes();
     updateScore();
+    updateParticles();
 
     drawPipes();
     drawPowerUpItem();
@@ -721,7 +743,13 @@ function update() {
     requestAnimationFrame(update);
 }
 
+const GAME_KEYS = new Set(['Space', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyD']);
+
 window.addEventListener('keydown', (e) => {
+    if (state.phase !== 'menu' && GAME_KEYS.has(e.code)) {
+        e.preventDefault();
+    }
+
     keys[e.code] = true;
 
     if (state.phase === 'menu') {
@@ -808,13 +836,15 @@ canvas.addEventListener('touchstart', (e) => {
             playSound('jump');
         }
     } else {
-        const touchX = e.touches[0].clientX;
-        if (touchX < canvas.width / 2 && players[0] && players[0].alive) {
-            players[0].velocity = JUMP_HEIGHT;
-            playSound('jump');
-        } else if (touchX >= canvas.width / 2 && players[1] && players[1].alive) {
-            players[1].velocity = JUMP_HEIGHT;
-            playSound('jump');
+        for (let i = 0; i < e.touches.length; i++) {
+            const touchX = e.touches[i].clientX;
+            if (touchX < canvas.width / 2 && players[0] && players[0].alive) {
+                players[0].velocity = JUMP_HEIGHT;
+                playSound('jump');
+            } else if (touchX >= canvas.width / 2 && players[1] && players[1].alive) {
+                players[1].velocity = JUMP_HEIGHT;
+                playSound('jump');
+            }
         }
     }
 
